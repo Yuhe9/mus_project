@@ -1,47 +1,49 @@
 const puppeteer = require('puppeteer');
-
+// run: tsc then node
 let scrape = async() =>{
     const browser= await puppeteer.launch()
     const page = await browser.newPage();
     // go to the website page
     await page.goto('https://arts.vcu.edu/music/events/');
-
     await page.waitFor(2000);
     //scrape
+    var isLastPage = false;
     const result = await page.evaluate(()=>{
         // loop
-        let data = [];// may be CaptureEvent?
+        let data = [];
         const allSubMenus : NodeListOf<Element> = document.querySelectorAll("[id^='post']");
         // loop through all posts
         try { 
             for (let i = 1; i < allSubMenus.length; i++){ 
-                //let title = document.querySelectorAll("[id^='post']").item;
-                // let title = document.querySelector('#post-11527 > header > h1 > a').textContent;
-                // let date = document.querySelector('#post-11527 > section > p > strong').textContent;
                     let post = document.querySelectorAll("[id^='post']")[i]     
-                // let title = sub.childNodes[1].textContent;
                     let title = post.querySelector('header.article-header h1.post-title a').textContent; 
-                    //title = title.replace(/\r?\n?\t?/g, '');// get rid of line breakers
                     let details = post.querySelector('section.entry-content p').textContent.split(/\n/) 
                     let time = details[0];
                     let place = details[1]+details[2];
                     let ticket = details[3];
-                    // TODO: make this work
-                    // let date = sub.childNodes[2].childNodes[1].children[1].textContent;
                     data.push({title, time,place,ticket});
-                //// to select the place/price for only one post but does not working for now
-                //// let place = document.querySelector('#post-11530 > section > p:nth-child(2)').textContent;
-                //// let price = document.querySelector('#post-11527 > section > p:nth-child(4)').textContent;
                 }
-        } catch (e) {
-            console.log(e); 
-        }
-        // return{
-        //     title, date, place//, price
+            }
+        // } catch (e) {
+        //     console.log(e); 
         // }
+        catch {
+            isLastPage = true;
+        }
         return data;
     });
-    //
+    if (!isLastPage) {      
+              await page.evaluate(
+                (buttonSelector) => {
+                  var pagerElem = document.querySelector(buttonSelector);
+                  if (pagerElem) { 
+                    pagerElem.click("page-navigation.bones_page_navi li a");
+                  }
+                }, 
+                'button[title="Next"]');
+        
+              console.log('paging to next...')
+            }      
     browser.close();
     return result;
 };
@@ -49,6 +51,40 @@ let scrape = async() =>{
 scrape().then((value)=>{
     console.log(value);
 });
+
+// do {
+//     //capture from main page - 
+//     //if there's no matching selector, exception is thrown, 
+//     //which will be interpreted as 'last page'
+//     try {
+//       [log, results, isLastPage] = await 
+//         page.$$eval<[models.CaptureLog, models.CaptureResults, boolean], models.CaptureResults, models.CaptureLog, any>(
+//           channelCfg.DAY_EVENT_SELECTOR, 
+//           parseMainCscPageBrowserFn,
+//           results,
+//           log,
+//           bundledRuntimeDependencies
+//       );
+//     } catch {
+//       isLastPage = true;
+//     }
+    
+//     //page forward
+//     if (!isLastPage) {      
+//       await page.evaluate(
+//         (buttonSelector) => {
+//           var pagerElem = document.querySelector(buttonSelector);
+//           if (pagerElem) {
+//             pagerElem.click();
+//           }
+//         }, 
+//         'button[title="Next"]');
+
+//       console.log('paging to next...')
+//     }      
+//     await page.waitFor(5000);
+//   } while (!isLastPage)
+
 
 export interface CaptureResults {
     tenantName: string;
